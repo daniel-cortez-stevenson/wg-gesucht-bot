@@ -5,7 +5,7 @@ import * as path from "path";
 import { Low, JSONFile } from "lowdb";
 
 import crawl from "./src/crawl.js";
-import { login, getMessageTemplate, messageListingSeller } from "./src/account.js";
+import { login, getMessageTemplate, getMessageData, sendMessage } from "./src/account.js";
 
 (async () => {
   try {
@@ -13,19 +13,17 @@ import { login, getMessageTemplate, messageListingSeller } from "./src/account.j
     console.log("***************************");
 
     // init db
-    const file = path.join("./db/db.json");
+    const file = path.join(process.env.DB_PATH);
     const adapter = new JSONFile(file);
     const db = new Low(adapter);
 
     // login
-    let loginCookie = await login();
+    let cookie = await login(process.env.WG_USER, process.env.WG_PASSWORD);
 
     // run main sequence once, then every 5 minutes indefinitely
-    const sleepMinutes = 5;
+    const sleepMinutes = 2;
     while (true) {
       // crawl new listings
-      await db.read();
-      db.data ||= { rooms: [] };
       let scraperHeaders = {
         "Content-Type": "application/json",
         "User-Agent":
@@ -33,15 +31,25 @@ import { login, getMessageTemplate, messageListingSeller } from "./src/account.j
         Origin: "https://www.wg-gesucht.de",
         Host: "www.wg-gesucht.de",
       };
-      await crawl(db, scraperHeaders);
-      console.log("Done crawling new listings!");
+      const crawledListings = await crawl(process.env.FILTER_URL, scraperHeaders);
+
+      await db.read();
+      db.data ||= { listings: [] };
+      for (const listing of crawledListings) {
+        const dbListing = db.data.listings.find(({id}) => id === listing.id);
+        if (!dbListing) {
+          db.data.listings.push(listing);
+          await db.write();
+          console.log("Added listing to DB:", JSON.stringify(listing, null, 2));
+        }
+      }
 
       // get message templates
       let messageTemplateHeaders = {
         "Content-Type": "application/json",
         "User-Agent":
           "Mozilla/5.0 (Linux; Android 10; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.62 Mobile Safari/537.36",
-        Cookie: loginCookie,
+        Cookie: cookie,
         Origin: "https://www.wg-gesucht.de",
         Host: "www.wg-gesucht.de",
       };
@@ -57,17 +65,41 @@ import { login, getMessageTemplate, messageListingSeller } from "./src/account.j
       };
 
       // send messages to sellers
-      await db.read();
       let messageHeaders = {
         "Content-Type": "application/json",
         "User-Agent":
           "Mozilla/5.0 (Linux; Android 10; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.62 Mobile Safari/537.36",
-        Cookie: loginCookie,
+        Cookie: cookie,
         Origin: "https://www.wg-gesucht.de",
         Host: "www.wg-gesucht.de",
       };
-      await messageListingSeller(db, messageHeaders, messageTemplates);
-      console.log("Done messaging sellers!");
+      await db.read();
+      const listingsNotMessaged = await db.data.listings.filter(({ sent }) => sent === 0);
+      for (const listing of listingsNotMessaged) {
+        let csrfToken,
+            userId;
+        try {
+          ({csrfToken, userId} = await getMessageData(listing.longId, messageHeaders))
+        } catch (e) {
+          console.log(e);
+          continue;
+        }
+        let messageTemplate = listing.lang === "eng" ? messageTemplates.eng : messageTemplates.ger;
+        const messageSent = await sendMessage(
+          listing.id,
+          csrfToken,
+          userId,
+          messageTemplate,
+          messageHeaders,
+        );
+        if (messageSent) {
+          let listingIndex = await db.data.listings.findIndex(
+            ({ id }) => id === listing.id
+          );
+          db.data.listings[listingIndex].sent = 1;
+        }
+      }
+      await db.write();
 
       // wait
       console.log(`Waiting ${sleepMinutes} minutes ...`);
