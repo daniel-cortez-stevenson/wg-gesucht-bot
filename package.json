@@ -14,7 +14,8 @@
     "cheerio": "^1.0.0-rc.3",
     "dotenv": "^8.1.0",
     "franc": "^6.0.0",
-    "lowdb": "^2.0.0"
+    "lowdb": "^2.0.0",
+    "puppeteer": "^11.0.0"
   },
   "devDependencies": {
     "eslint": "7.32.0",

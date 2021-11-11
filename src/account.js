@@ -49,7 +49,9 @@ export async function getMessageData(listingLongId, headers) {
   let csrfToken = $(".csrf_token").val();
   let userId = $(".logout_button").data("user_id");
   if (!csrfToken || !userId) {
-    throw new Error(`CSRF Token: ${csrfToken} or User ID: ${userId} not found.`);
+    throw new Error(
+      `CSRF Token: ${csrfToken} or User ID: ${userId} not found.`
+    );
   }
   return {
     userId,
@@ -57,7 +59,13 @@ export async function getMessageData(listingLongId, headers) {
   };
 }
 
-export async function sendMessage(listingId, csrfToken, userId, messageTemplate, headers) {
+export async function sendMessage(
+  listingId,
+  csrfToken,
+  userId,
+  messageTemplate,
+  headers
+) {
   const data = {
     user_id: userId,
     csrf_token: csrfToken,
@@ -70,7 +78,7 @@ export async function sendMessage(listingId, csrfToken, userId, messageTemplate,
     ad_type: "0",
     ad_id: listingId,
   };
-  console.log("Message data:", JSON.stringify(data, null, 2))
+  console.log("Message data:", JSON.stringify(data, null, 2));
   try {
     const _ = await axios({
       method: "post",

@@ -1,44 +1,75 @@
-import axios from "axios";
-import cheerio from "cheerio";
+import puppeteer from "puppeteer";
 import { franc } from "franc";
 import { constants } from "./constants.js";
 
-export default async function crawl(filterUrl, headers) {
+export default async function crawl(filterUrl) {
   console.log("Getting new listings ...");
+  let browser;
   try {
-    let response = await axios({
-      method: "get",
-      url: filterUrl,
-      headers: headers,
+    console.log("Launching the browser ...");
+    browser = await puppeteer.launch({
+      headless: true,
+      defaultViewport: undefined,
+      slowMo: undefined,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
-    return scrapeListings(response);
+    const page = await browser.newPage();
+    await applyStealth(page);
+    await page.goto(filterUrl, { waitUntil: "networkidle0" });
+    await page.waitForTimeout(5000);
+    const listings = await scrapeListings(page);
+    processListings(listings);
+    console.log(listings);
+    return listings;
   } catch (error) {
     console.log(error);
     return [];
+  } finally {
+    browser.close();
   }
 }
 
-function scrapeListings(response) {
-  let $ = cheerio.load(response.data);
-  let listings = [];
-  $(".wgg_card.offer_list_item").each((i, elem) => {
-    if (!$(elem).attr('class').includes('cursor-pointer')) {
-      let id = $(elem).attr("data-id");
-      let description = $(elem).find("a.detailansicht").text().trim();
-      let url = constants.BASE_URL + $(elem).find("a.detailansicht").attr("href");
-      let longId = url.split("/")[url.split("/").length - 1];
-      let lang = franc(description, { only: ["eng", "deu"] });
-      let data = {
-        id,
-        longId,
-        url,
-        description,
-        lang,
-        sent: 0,
-        createdAt: new Date().toISOString(),
-      };
-      listings.push(data);
-    }
-  });
-  return listings;
+const applyStealth = (page) =>
+  page
+    .addScriptTag({
+      url: "https://raw.githack.com/berstend/puppeteer-extra/stealth-js/stealth.min.js",
+    })
+    .catch((e) =>
+      console.log(
+        "Applying stealth protections failed with:",
+        e.message,
+        "\nContinuing without protection"
+      )
+    );
+
+async function scrapeListings(page) {
+  return await page.$$eval(
+    ".wgg_card.offer_list_item",
+    (listings, baseUrl) =>
+      listings
+        .map((listing) => {
+          if (!$(listing).attr("class").includes("cursor-pointer")) {
+            let id = $(listing).attr("data-id");
+            let description = $(listing).find("a.detailansicht").text().trim();
+            let url = baseUrl + $(listing).find("a.detailansicht").attr("href");
+            let longId = url.split("/")[url.split("/").length - 1];
+            return {
+              id,
+              longId,
+              url,
+              description,
+              sent: 0,
+              createdAt: new Date().toISOString(),
+            };
+          }
+        })
+        .filter((listing) => listing),
+    constants.BASE_URL
+  );
+}
+
+function processListings(listings) {
+  for (let i = 0; i < listings.length; i++) {
+    listings[i].lang = franc(listings[i].description, { only: ["eng", "deu"] });
+  }
 }
