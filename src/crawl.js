@@ -4,7 +4,6 @@ import { constants } from "./constants.js";
 
 export default async function crawl(filterUrl) {
   console.log("Getting new listings ...");
-  console.log(filterUrl);
   let browser;
   try {
     console.log("Launching the browser ...");
