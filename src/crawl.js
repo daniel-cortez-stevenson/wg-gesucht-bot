@@ -4,6 +4,7 @@ import { constants } from "./constants.js";
 
 export default async function crawl(filterUrl) {
   console.log("Getting new listings ...");
+  console.log(filterUrl);
   let browser;
   try {
     console.log("Launching the browser ...");
@@ -16,10 +17,9 @@ export default async function crawl(filterUrl) {
     const page = await browser.newPage();
     await applyStealth(page);
     await page.goto(filterUrl, { waitUntil: "networkidle0" });
-    await page.waitForTimeout(5000);
+    await page.reload({ waitUntil: "networkidle0" });  // TODO: Find out why reload enables district filters ...
     const listings = await scrapeListings(page);
     processListings(listings);
-    console.log(listings);
     return listings;
   } catch (error) {
     console.log(error);
