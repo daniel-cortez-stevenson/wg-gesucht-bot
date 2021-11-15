@@ -14,7 +14,7 @@ import {
 
 (async () => {
   try {
-    console.log("Starting Wg-Gesucht Scraper");
+    console.log("Starting Wg-Gesucht Bot");
     console.log("***************************");
 
     // init db
@@ -28,6 +28,7 @@ import {
     // run main sequence once, then every 5 minutes indefinitely
     const sleepMinutes = 2;
     while (true) {
+      console.log(`Attempt at: ${new Date().toISOString()}`)
       // crawl new listings
       const crawledListings = await crawl(process.env.FILTER_URL);
 
@@ -105,7 +106,6 @@ import {
       await db.write();
 
       // wait
-      console.log(`Waiting ${sleepMinutes} minutes ...`);
       await sleep(sleepMinutes * 60 * 1000);
     }
   } catch (e) {

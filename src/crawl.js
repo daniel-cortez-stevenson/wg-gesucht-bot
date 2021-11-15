@@ -3,10 +3,8 @@ import { franc } from "franc";
 import { constants } from "./constants.js";
 
 export default async function crawl(filterUrl) {
-  console.log("Getting new listings ...");
   let browser;
   try {
-    console.log("Launching the browser ...");
     browser = await puppeteer.launch({
       headless: true,
       defaultViewport: undefined,
@@ -24,7 +22,7 @@ export default async function crawl(filterUrl) {
     console.log(error);
     return [];
   } finally {
-    browser.close();
+    await browser.close();
   }
 }
 
