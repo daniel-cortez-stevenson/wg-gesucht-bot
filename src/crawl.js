@@ -2,7 +2,7 @@ import puppeteer from "puppeteer";
 import { franc } from "franc";
 import { constants } from "./constants.js";
 
-export default async function crawl(filterUrl) {
+export async function crawlListings(filterUrl) {
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -14,7 +14,7 @@ export default async function crawl(filterUrl) {
     const page = await browser.newPage();
     await applyStealth(page);
     await page.goto(filterUrl, { waitUntil: "networkidle0" });
-    await page.reload({ waitUntil: "networkidle0" });  // TODO: Find out why reload enables district filters ...
+    await page.reload({ waitUntil: "networkidle0" }); // TODO: Find out why reload enables district filters ...
     const listings = await scrapeListings(page);
     processListings(listings);
     return listings;

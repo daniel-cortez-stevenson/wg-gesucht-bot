@@ -16,7 +16,7 @@ Run the app with Docker:
 ```bash
 docker build -t wg-gesucht-bot .
 docker run \
-    -d --restart unless-stopped \
+    -d --restart always \
     -v "$(pwd)/db:/home/myuser/db" \
     wg-gesucht-bot
 ```

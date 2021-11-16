@@ -2,7 +2,7 @@ import axios from "axios";
 import cheerio from "cheerio";
 import { constants } from "./constants.js";
 
-export async function login(user, password) {
+export async function getLoginCookie(user, password) {
   let loginInfo = {
     login_email_username: user,
     login_password: password,
