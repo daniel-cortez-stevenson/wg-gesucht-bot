@@ -122,10 +122,10 @@ async function getListingsNotMessaged(db) {
   return await db.data.listings.filter(({ sent }) => sent === 0);
 }
 
-async function updateListingById(db, listingId, updates) {
-  let index = await db.data.listings.findIndex(({ id }) => id === listingId);
-  for (updateKey of updates) {
-    db.data.listings[index][updateKey] = updates[updateKey];
+async function updateListingById(db, listingId, update) {
+  const index = await db.data.listings.findIndex(({ id }) => id === listingId);
+  for (const key in update) {
+    db.data.listings[index][key] = update[key];
     await db.write();
   }
 }
