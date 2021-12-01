@@ -19,19 +19,6 @@ import {
 
     const db = await initDb();
 
-    const cookie = await getLoginCookie(
-      process.env.WG_USER,
-      process.env.WG_PASSWORD
-    );
-    const loggedInHeaders = {
-      "Content-Type": "application/json",
-      "User-Agent":
-        "Mozilla/5.0 (Linux; Android 10; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.62 Mobile Safari/537.36",
-      Cookie: cookie,
-      Origin: "https://www.wg-gesucht.de",
-      Host: "www.wg-gesucht.de",
-    };
-
     while (true) {
       console.log(`Attempt at: ${new Date().toISOString()}`);
       // Get available listings from WG-Gesucht based on filters.
@@ -45,40 +32,54 @@ import {
       });
       // Check DB for any listings we haven't written to yet.
       const listingsNotMessaged = await getListingsNotMessaged(db);
-      // Get up-to-date message templates from WG-Gesucht profile.
-      let messageTemplates;
       if (listingsNotMessaged.length > 0) {
-        messageTemplates = await getMessageTemplates(loggedInHeaders);
-      }
-      // Construct a message payload and send it for each listing not messaged in DB.
-      listingsNotMessaged.forEach(async (listing) => {
-        // Get necessary data to send a message from the listing URL.
-        let csrfToken, userId;
-        try {
-          ({ csrfToken, userId } = await getMessageData(
-            listing.longId,
+        // Create request headers with login cookie.
+        const loggedInHeaders = {
+          "Content-Type": "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Linux; Android 10; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.62 Mobile Safari/537.36",
+          Cookie: await getLoginCookie(
+            process.env.WG_USER,
+            process.env.WG_PASSWORD
+          ),
+          Origin: "https://www.wg-gesucht.de",
+          Host: "www.wg-gesucht.de",
+        };
+        // Get up-to-date message templates from WG-Gesucht profile.
+        const messageTemplates = await getMessageTemplates(loggedInHeaders);
+        // Construct a message payload and send it for each listing not messaged in DB.
+        await listingsNotMessaged.forEach(async (listing) => {
+          // Get necessary data to send a message from the listing URL.
+          let csrfToken, userId;
+          try {
+            ({ csrfToken, userId } = await getMessageData(
+              listing.longId,
+              loggedInHeaders
+            ));
+          } catch (e) {
+            console.log(`getMessageData failed with message ${e.message}`);
+            await removeListingById(db, listing.id);
+            return; // Skip the rest of this sequence when necessary data is not retrieved from URL.
+          }
+          // Choose a message to send based on interpreted language of the listing description.
+          const message =
+            listing.lang === "eng"
+              ? messageTemplates.eng
+              : messageTemplates.ger;
+          // Send the message to the user who owns the listing.
+          const messageSent = await sendMessage(
+            listing.id,
+            csrfToken,
+            userId,
+            message,
             loggedInHeaders
-          ));
-        } catch (e) {
-          console.log(e);
-          return; // Skip the rest of this sequence when necessary data is not retrieved from URL.
-        }
-        // Choose a message to send based on interpreted language of the listing description.
-        const message =
-          listing.lang === "eng" ? messageTemplates.eng : messageTemplates.ger;
-        // Send the message to the user who owns the listing.
-        const messageSent = await sendMessage(
-          listing.id,
-          csrfToken,
-          userId,
-          message,
-          loggedInHeaders
-        );
-        // On success, mark the listing as messaged in the DB.
-        if (messageSent) {
-          await updateListingById(db, listing.id, { sent: 1 });
-        }
-      });
+          );
+          // On success, mark the listing as messaged in the DB.
+          if (messageSent) {
+            await updateListingById(db, listing.id, { sent: 1 });
+          }
+        });
+      }
       console.log(
         `Attempt finished. Sleeping for ${process.env.WAIT_SECONDS} seconds.`
       );
@@ -122,7 +123,18 @@ async function getListingsNotMessaged(db) {
   return await db.data.listings.filter(({ sent }) => sent === 0);
 }
 
+async function removeListingById(db, listingId) {
+  await db.read();
+  const index = await db.data.listings.findIndex(({ id }) => id === listingId);
+  if (index > -1) {
+    db.data.listings.splice(index, 1);
+    await db.write();
+    console.log(`Removed listing ${listing.id}`);
+  }
+}
+
 async function updateListingById(db, listingId, update) {
+  await db.read();
   const index = await db.data.listings.findIndex(({ id }) => id === listingId);
   for (const key in update) {
     db.data.listings[index][key] = update[key];
