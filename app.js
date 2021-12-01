@@ -26,12 +26,12 @@ import {
       const crawledListings = await crawlListings(process.env.FILTER_URL);
 
       // Write available listings to the DB if they are not already there.
-      await crawledListings.forEach(async (listing) => {
+      for (const listing of crawledListings) {
         const listingInDb = await findListingById(db, listing.id);
         if (!listingInDb) {
           await writeListing(db, listing);
         }
-      });
+      }
 
       // Check DB for any listings we haven't written to yet.
       const listingsNotMessaged = await getListingsNotMessaged(db);
@@ -63,7 +63,7 @@ import {
       const messageTemplates = await getMessageTemplates(loggedInHeaders);
 
       // Construct a message payload and send it for each listing not messaged in DB.
-      await listingsNotMessaged.forEach(async (listing) => {
+      for (const listing of listingsNotMessaged) {
         // Get necessary data to send a message from the listing URL.
         const { csrfToken, userId } = await getMessageData(
           listing.longId,
@@ -95,7 +95,8 @@ import {
         if (messageSent) {
           await updateListingById(db, listing.id, { sent: 1 });
         }
-      });
+      }
+
       console.log(
         `Messaged the owners of new listings. Sleeping for ${process.env.WAIT_SECONDS} seconds.`
       );
