@@ -1,17 +1,21 @@
 # WG-Gesucht Bot
 
-Automate your flat search!
+What it does:
+
+- Retrieves new ad listings based on a filter or search (URL) every 2 minutes.
+- Sends a message template to the newly-found ad owners.
+- Ad language detection and configurable message templates per language (ENG/DEU only).
 
 ## Quickstart
 
-Configure the app:
+### Configure the app
 
 ```bash
 cp .env.example .env
 vi .env
 ```
 
-Run the app with Docker:
+### Build & run the app with Docker
 
 ```bash
 docker build -t wg-gesucht-bot .
@@ -21,7 +25,7 @@ docker run \
     wg-gesucht-bot
 ```
 
-Install and run the app locally:
+### Install and run the app locally
 
 ```bash
 npm i
@@ -32,7 +36,7 @@ npm start
 
 A guide to the app's .env file
 
-### Credentials
+### WG Gesucht Login
 
 In order to use the script you will need to apply your credentials and template messages in the generated .env file:
 
@@ -41,37 +45,40 @@ WG_USER= YOUR-USERNAME
 WG_PASSWORD= YOUR-PASSWORD
 ```
 
-### Language
+### Message Template per Language
 
-The script detects the language of the ad (German or English) so you will have to provide the message template id of your Germand and English version.
+The script detects the language of the ad (German or English) so you will have to provide the message template id of your German and English versions of your initial message to ad owners.
 
-If you wish to use only one language you can use the same id for both languages.
+1. Log in into your wg-account and go into your [Message templates](https://www.wg-gesucht.de/en/mein-wg-gesucht-message-templates.html). Create one message template for English ads and one message template for German ads. *Note: If you wish to use only one language you can use the same id for both languages.*
 
-Log in into your wg-account and go into your [Message templates](https://www.wg-gesucht.de/en/mein-wg-gesucht-message-templates.html)). Create an english and german version of your desired message and copy the template id, it should be on the top of the address:
+2. Click on each message template and record the value of the URL parameter `template_id` for the respective language in the .env file.
 
-> [https://www.wg-gesucht.de/en/message-template.html?template_id=YOUR-MESSAGE-ID](https://www.wg-gesucht.de/en/message-template.html?template_id=5138171)
-
-Copy the id to the .env file
+    - The URL will like: `https://www.wg-gesucht.de/en/message-template.html?template_id=YOUR-MESSAGE-ID`
 
 ```dotenv
 MESSAGE_ENG=YOUR-MESSAGE-ID
 MESSAGE_GER=YOUR-MESSAGE-ID
 ```
 
-### Filter
+### Search Filter
 
-You can either use an existing custom saved filter or use the url generated after a search applying the filters you want. Both of them should have a format similar to:
+1. (Optional) Create a saved filter using the browser.
 
-> https://www.wg-gesucht.de/en/wg-zimmer-in-Berlin.8.0.1.0.html?offer_filter=1&noDeact=1&city_id=8&category=0&rent_type=0&rMax=450
+2. Navigate to the desired filter or search results page. Find the saved filter URL (by clicking on a saved filter from your home page), OR use a search URL (after a searching manually).
 
-Once you have your filter url apply it into the .env file
+3. Copy the URL from the browser and set it as the value of `FILTER_URL` in the .env file (regardless of if it is a fiter URL or a search URL).
+
+    - Both filter URLs and search URLs will have a format similar to: `https://www.wg-gesucht.de/en/wg-zimmer-in-Berlin.8.0.1.0.html?offer_filter=1&noDeact=1&city_id=8&category=0&rent_type=0&rMax=450`
 
 ```dotenv
-FILTER_URL=YOUR FILTER URL
+FILTER_URL=YOUR_FILTER_OR_SEARCH_URL
 ```
 
-## Features
+## Helpful Commands
 
-- Autodiscovery of new rooms or flats every 5 minutes.
-- Ad Language detection
-- Autosend messages to owners every 5 minutes
+Track the total number of messages sent for a given Docker container instance.
+
+```bash
+# $(docker ps -q) here only works when only one container is running per Docker Daemon.
+docker logs $(docker ps -q) |grep 'Message sent!'| wc -l |xargs echo "Messages Sent:"
+```
