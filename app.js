@@ -16,6 +16,7 @@ import {
   try {
     console.log("Starting Wg-Gesucht Bot");
     console.log("***************************");
+    console.log("Current directory:", process.cwd()); 
 
     const db = await initDb();
 
@@ -50,7 +51,7 @@ import {
       const loggedInHeaders = {
         "Content-Type": "application/json",
         "User-Agent":
-          "Mozilla/5.0 (Linux; Android 10; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.62 Mobile Safari/537.36",
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
         Cookie: await getLoginCookie(
           process.env.WG_USER,
           process.env.WG_PASSWORD
@@ -65,7 +66,7 @@ import {
       // Construct a message payload and send it for each listing not messaged in DB.
       for (const listing of listingsNotMessaged) {
         // Get necessary data to send a message from the listing URL.
-        const { csrfToken, userId } = await getMessageData(
+        const [csrfToken, userId] = await getMessageData(
           listing.longId,
           loggedInHeaders
         ).catch((e) => {
@@ -111,13 +112,17 @@ async function initDb() {
   const file = path.join(process.env.DB_PATH);
   const adapter = new JSONFile(file);
   const db = new Low(adapter);
+  await db.read();
+  if (!db.data) {
+    db.data ||= { listings: [] };
+    await db.write();
+  }
   console.log("DB initiated!");
   return db;
 }
 
 async function findListingById(db, listingId) {
   await db.read();
-  db.data ||= { listings: [] };
   return db.data.listings.find(({ id }) => id === listingId);
 }
 
@@ -137,7 +142,6 @@ async function getMessageTemplates(headers) {
 
 async function getListingsNotMessaged(db) {
   await db.read();
-  db.data ||= { listings: [] };
   return await db.data.listings.filter(({ sent }) => sent === 0);
 }
 
@@ -147,7 +151,7 @@ async function removeListingById(db, listingId) {
   if (index > -1) {
     db.data.listings.splice(index, 1);
     await db.write();
-    console.log(`Removed listing ${listing.id}`);
+    console.log(`Removed listing ${listingId}`);
   }
 }
 

@@ -48,15 +48,7 @@ export async function getMessageData(listingLongId, headers) {
   const $ = cheerio.load(response.data);
   let csrfToken = $(".csrf_token").val();
   let userId = $(".logout_button").data("user_id");
-  if (!csrfToken || !userId) {
-    throw new Error(
-      `CSRF Token: ${csrfToken} or User ID: ${userId} not found.`
-    );
-  }
-  return {
-    userId,
-    csrfToken,
-  };
+  return [csrfToken, userId];
 }
 
 export async function sendMessage(
@@ -89,7 +81,7 @@ export async function sendMessage(
     console.log("Message sent!");
     return true;
   } catch (error) {
-    let detailText = error.response.data.detail;
+    let detailText = error.response?.data.detail;
     console.log(error.message + ":", detailText);
     if (detailText.startsWith("Conversation already exists ")) {
       console.log(

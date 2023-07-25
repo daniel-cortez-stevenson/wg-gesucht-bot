@@ -19,9 +19,9 @@ vi .env
 
 ```bash
 docker build -t wg-gesucht-bot .
-docker run \
-    -d --restart always \
-    -v "$(pwd)/db:/home/myuser/db" \
+docker run -i --init --cap-add=SYS_ADMIN \
+    --restart always \
+    -v "$(pwd)/db:/home/pptruser/db" \
     wg-gesucht-bot
 ```
 
@@ -41,8 +41,8 @@ A guide to the app's .env file
 In order to use the script you will need to apply your credentials and template messages in the generated .env file:
 
 ```dotenv
-WG_USER= YOUR-USERNAME
-WG_PASSWORD= YOUR-PASSWORD
+WG_USER=YOUR-EMAIL
+WG_PASSWORD=YOUR-PASSWORD
 ```
 
 ### Message Template per Language
